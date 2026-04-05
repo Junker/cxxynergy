@@ -1,20 +1,5 @@
 (in-package :cxx-jit)
 
-(defparameter *cxx-compiler-executable-path* "/usr/bin/g++")
-(defparameter *cxx-compiler-flags* "-std=c++17 -Wall -Wextra -I/usr/include/eigen3")
-;;; #\/ '/' should be the last char
-(defparameter *cxx-compiler-working-directory* (namestring (uiop:temporary-directory)))
-(defconstant +cxx-compiler-lib-name+ (intern "plugin"))
-(defconstant +cxx-compiler-wrap-cxx-path+ (uiop:merge-pathnames* "./src/wrap-cxx.cpp" (asdf:system-source-directory :cxx-jit)))
-;;; TODO: detect compiler then set flags #+#.
-;;;              ,but don't how to handle changing cxx-compiler-exe path
-;;; change to "-Wl,-undefined,error -Wl,-flat_namespace" for clang++
-(defparameter *cxx-compiler-internal-flags* "-shared -fPIC -Wl,--no-undefined -Wl,--no-allow-shlib-undefined")
-(defparameter *cxx-compiler-link-libs* "-lm")
-;;; list of libs compiled
-(defparameter *cxx-compiler-packages* nil)
-(defparameter *cxx-compiler-packages-number* 0)
-(defparameter *cxx--fun-names* '())
 ;; alist used to map C++ type name to cffi types
 (defparameter *cxx-type-name-to-cffi-type-symbol-alist* '(("const char*" . :string)
                                                           ("char*" . :string)
@@ -56,6 +41,49 @@
                                                           ("bool" . :bool)
                                                           ("size_t" . :size)
                                                           ("ssize_t" . :ssize)))
+;;; ============================================================================
+;;; Configuration Variables
+;;; ============================================================================
+
+(defparameter *cxx-compiler-executable-path* "/usr/bin/g++"
+  "Path to the C++ compiler executable.")
+
+(defparameter *cxx-compiler-flags* "-std=c++17 -Wall -Wextra -I/usr/include/eigen3"
+  "Compiler flags passed to the C++ compiler.")
+
+(defparameter *cxx-compiler-working-directory* (namestring (uiop:temporary-directory))
+  "Working directory for compilation. Must end with '/' character.")
+
+(defconstant +cxx-compiler-lib-name+ (intern "plugin")
+  "Base name for compiled shared libraries.")
+
+(defconstant +cxx-compiler-wrap-cxx-path+
+  (uiop:merge-pathnames* "src/wrap-cxx.cpp" (asdf:system-source-directory :cxx-jit))
+  "Path to the C++ wrapper code.")
+
+(defparameter *cxx-compiler-internal-flags*
+  "-shared -fPIC -Wl,--no-undefined -Wl,--no-allow-shlib-undefined"
+  "Internal compiler flags for shared library creation.
+For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
+
+(defparameter *cxx-compiler-link-libs* "-lm"
+  "Linker flags for external libraries (added after -o output).")
+
+(defparameter *cxx-auto-export* t
+  "When non-nil, automatically export defined function symbols.")
+
+(defparameter *cxx-default-includes* '()
+  "Default includes added to every C++ compilation unit.")
+
+(defparameter *cxx-compiler-packages* nil
+  "List of loaded shared library handles.")
+
+(defparameter *cxx-compiler-packages-number* 0
+  "Counter for generating unique library names.")
+
+(defparameter *cxx--fun-names* '()
+  "Internal: temporary storage for function names during registration.")
+
 
 (define-condition cxx-error (error)
   ((message
