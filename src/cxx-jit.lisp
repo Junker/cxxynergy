@@ -98,22 +98,28 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
     ("uint64_t" . :uint64))
   "Alist mapping C++ type names to CFFI type keywords.")
 
+;;; ============================================================================
+;;; Conditions
+;;; ============================================================================
+
 (define-condition cxx-error (error)
-  ((message
-    :initarg :message
-    :reader cxx-error-message)))
+  ((message :initarg :message
+            :reader cxx-error-message))
+  (:documentation "Base condition for CXX-JIT errors."))
 
 (define-condition cxx-compile-error (cxx-error)
   ()
   (:report (lambda (condition stream)
-             (format stream "C++ compile error: ~A"
-                     (cxx-error-message condition)))))
+             (format stream "C++ compilation error: ~A"
+                     (cxx-error-message condition))))
+  (:documentation "Condition signaled when C++ compilation fails."))
 
 (define-condition cxx-runtime-error (cxx-error)
   ()
   (:report (lambda (condition stream)
              (format stream "C++ runtime error: ~A"
-                     (cxx-error-message condition)))))
+                     (cxx-error-message condition))))
+  (:documentation "Condition signaled when C++ code throws an exception."))
 
 ;; inline void lisp_error(const char *error)
 (cffi:defcallback lisp-error :void ((err :string))
