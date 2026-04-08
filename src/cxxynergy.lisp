@@ -1,4 +1,4 @@
-(in-package :cxx-jit)
+(in-package :cxxynergy)
 
 ;;; ============================================================================
 ;;; Configuration Variables
@@ -11,7 +11,7 @@
   "Compiler flags passed to the C++ compiler.")
 
 (defconstant +cxx-compiler-wrap-cxx-path+
-  (uiop:merge-pathnames* "src/wrap-cxx.cpp" (asdf:system-source-directory :cxx-jit))
+  (uiop:merge-pathnames* "src/wrap-cxx.cpp" (asdf:system-source-directory :cxxynergy))
   "Path to the C++ wrapper code.")
 
 (defparameter *cxx-compiler-internal-flags*
@@ -87,7 +87,7 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
 (define-condition cxx-error (error)
   ((message :initarg :message
             :reader cxx-error-message))
-  (:documentation "Base condition for CXX-JIT errors."))
+  (:documentation "Base condition for CXXynergy errors."))
 
 (define-condition cxx-compile-error (cxx-error)
   ()
@@ -197,15 +197,14 @@ Returns a list suitable for use in foreign-funcall-pointer."
 (defun compile-and-load-code (code)
   "Compile C++ source CODE string to a shared library.
 Returns T on success, signals CXX-COMPILE-ERROR on failure."
-
   (with-temporary-file (:stream source-stream
-                        :prefix "cl-cxx-jit"
+                        :prefix "cxxynergy"
                         :pathname source-path
                         :type "cpp"
                         :direction :output)
     (write-string code source-stream)
     (finish-output source-stream)
-    (with-temporary-file (:prefix "cl-cxx-jit"
+    (with-temporary-file (:prefix "cxxynergy"
                           :type "so"
                           :pathname output-path)
       (let ((cmd (format nil "~A ~A ~A ~A -o ~A ~A"

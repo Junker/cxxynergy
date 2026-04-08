@@ -1,4 +1,4 @@
-(defpackage :cxx-jit
+(defpackage :cxxynergy
   (:use #:cl
         #:cffi
         #:uiop

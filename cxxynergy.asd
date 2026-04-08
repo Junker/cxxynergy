@@ -3,14 +3,14 @@
   Copyright (c) 2021 Islam Omar (io1131@fayoum.edu.eg)
 |#
 
-(defsystem :cxx-jit
+(defsystem :cxxynergy
   :version "1.0"
   :author "Islam Omar"
   :license "MIT"
   :depends-on (:cffi :uiop :trivial-garbage :alexandria)
   :components ((:file "package")
                (:module "src"
-                        :components ((:file "cxx-jit"))))
+                :components ((:file "cxxynergy"))))
   :description "Common Lisp Cxx Interoperation"
   :long-description
   #.(with-open-file (stream (merge-pathnames
