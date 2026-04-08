@@ -3,17 +3,11 @@
   Copyright (c) 2021 Islam Omar (io1131@fayoum.edu.eg)
 |#
 
-
-(defpackage :cxx-jit/system
-  (:use :cl :asdf))
-
-(in-package :cxx-jit/system)
-
 (defsystem :cxx-jit
   :version "1.0"
   :author "Islam Omar"
   :license "MIT"
-  :depends-on (:cffi :uiop :trivial-garbage)
+  :depends-on (:cffi :uiop :trivial-garbage :alexandria)
   :components ((:file "package")
                (:module "src"
                         :components ((:file "cxx-jit"))))

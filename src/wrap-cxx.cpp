@@ -396,8 +396,9 @@ inline void SendMetaData(void *md) {
 }  // namespace cl_cxx
 
 /// wrapper for Import function
-#define IMPORT(...)                                               \
+#define IMPORT(f_name, ...)                                       \
   do {                                                            \
+    md.func_name = #f_name;                                       \
     md.thunk_ptr = reinterpret_cast<void (*)()>(                  \
         cl_cxx::Import([&]() { return __VA_ARGS__; }));           \
     cl_cxx::InvocableTypeName([&]() { return __VA_ARGS__; }, &v); \
@@ -418,6 +419,7 @@ inline void SendMetaData(void *md) {
 extern "C" {
 
 typedef struct {
+  char* func_name;
   // could be void*
   void (*thunk_ptr)();
   bool method_p;

@@ -10,12 +10,6 @@
 (defparameter *cxx-compiler-flags* "-std=c++17 -Wall -Wextra -I/usr/include/eigen3"
   "Compiler flags passed to the C++ compiler.")
 
-(defparameter *cxx-compiler-working-directory* (namestring (uiop:temporary-directory))
-  "Working directory for compilation. Must end with '/' character.")
-
-(defconstant +cxx-compiler-lib-name+ (intern "plugin")
-  "Base name for compiled shared libraries.")
-
 (defconstant +cxx-compiler-wrap-cxx-path+
   (uiop:merge-pathnames* "src/wrap-cxx.cpp" (asdf:system-source-directory :cxx-jit))
   "Path to the C++ wrapper code.")
@@ -30,18 +24,6 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
 
 (defparameter *cxx-auto-export* t
   "When non-nil, automatically export defined function symbols.")
-
-(defparameter *cxx-default-includes* '()
-  "Default includes added to every C++ compilation unit.")
-
-(defparameter *cxx-compiler-packages* nil
-  "List of loaded shared library handles.")
-
-(defparameter *cxx-compiler-packages-number* 0
-  "Counter for generating unique library names.")
-
-(defparameter *cxx--fun-names* '()
-  "Internal: temporary storage for function names during registration.")
 
 ;;; ============================================================================
 ;;; Type Mapping
@@ -121,149 +103,190 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
                      (cxx-error-message condition))))
   (:documentation "Condition signaled when C++ code throws an exception."))
 
-;; inline void lisp_error(const char *error)
+;;; ============================================================================
+;;; Foreign Interface
+;;; ============================================================================
+
 (cffi:defcallback lisp-error :void ((err :string))
+  "Callback for handling C++ exceptions."
   (error 'cxx-runtime-error :message err))
 
 (cffi:defcstruct meta-data
+  (func-name :string)
   (func-ptr :pointer)
   (method-p :bool)
   (arg-types (:pointer :string))
   (types-size :int8))
 
+(cffi:defcallback reg-data :void ((meta-ptr :pointer))
+  "Callback to register a C++ function from its metadata."
+  (cffi:with-foreign-slots ((func-name func-ptr method-p arg-types types-size)
+                            meta-ptr (:struct meta-data))
+    (let* ((name (intern func-name))
+           (args (loop :for i :below types-size
+                       :collect (cffi:mem-aref arg-types :string i)))
+           (return-type (car args))
+           (param-types (cdr args))
+           (arg-syms (generate-arg-symbols (length param-types) method-p)))
+      ;; Build the function definition
+      (eval
+       `(defun ,name ,arg-syms
+          (cffi:foreign-funcall-pointer
+           ,func-ptr nil
+           ,@(append
+              (when method-p `(:pointer ,(car arg-syms)))
+              (mapcan #'list
+                      (mapcar #'cffi-type param-types)
+                      (if method-p (cdr arg-syms) arg-syms))
+              (list (cffi-type return-type))))))
+      (when *cxx-auto-export*
+        (export name (symbol-package name))))))
+
+;;; ============================================================================
+;;; Utilities
+;;; ============================================================================
+
 (defun string-replace-first (str old new)
-  (let ((tmp (search old str)))
-    (strcat (subseq str 0 tmp)
+  "Replace the first occurrence of OLD with NEW in STR."
+  (if-let ((pos (search old str)))
+    (strcat (subseq str 0 pos)
             new
-            (subseq str (+ tmp (length old))))))
-
-
-(defun symbols-list (arg-types &optional (method-p nil))
-  "Return a list of symbols '(V0 V1 V2 V3 ...)
-   representing the number of args"
-  (let ((lst (if arg-types (loop for i below (length arg-types)
-                                 collect (intern (format nil "V~A" i))))))
-    (if method-p (push (intern "OBJ") lst))
-    lst))
+            (subseq str (+ pos (length old))))
+    str))
 
 (defun cffi-type (type)
-  "Returns cffi-type as a keyword"
+  "Convert a C++ type name string to a CFFI type keyword.
+Unknown types default to :pointer."
   (declare (type string type))
-  (let ((type-symbol (cdr (assoc type
-                                 *cxx-type-name-to-cffi-type-symbol-alist*
-                                 :test #'string-equal))))
-    (cond
-      (type-symbol type-symbol)
-      ((eq #\* (elt type (1- (length type)))) :pointer)
-      (t (format t "No Known conversion for type ~S. default to pointer~%" type) :pointer))))
+  (or (cdr (assoc type *cxx-type-name-to-cffi-type-symbol-alist*
+                  :test #'string-equal))
+      (prog1
+          :pointer
+        (when (char/= #\* (last-char type))
+          (format t "Warning: Unknown C++ type ~S, defaulting to :pointer~%" type)))))
 
-(defun parse-input-args (arg-types)
-  "return argument types (with variables if they are inputs) in a proper list"
+(defun generate-arg-symbols (count &optional method-p)
+  "Generate a list of argument symbols (V0 V1 V2 ...).
+For methods, prepends OBJ as the first argument."
+  (let ((syms (loop :for i :below count
+                    :collect (intern (format nil "V~A" i)))))
+    (if method-p (cons (intern "OBJ") syms) syms)))
+
+(defun parse-foreign-args (arg-types method-p)
+  "Parse argument types into CFFI declaration form.
+Returns a list suitable for use in foreign-funcall-pointer."
   (when arg-types
-    (mapcan (lambda (arg-type sym)
-              (list (cffi-type arg-type) sym))
-            arg-types (symbols-list arg-types))))
+    (let ((syms (generate-arg-symbols (length arg-types) method-p)))
+      (mapcan #'list
+              (mapcar #'cffi-type arg-types)
+              syms))))
 
-;; void send_data(MetaData *M)
-(cffi:defcallback reg-data :void ((meta-ptr :pointer))
-  (cffi:with-foreign-slots ((func-ptr method-p arg-types types-size) meta-ptr (:struct meta-data))
-    (let ((name (pop *cxx--fun-names*))
-          (args (loop for i below types-size
-                      collect (cffi:mem-aref arg-types :string i))))
-      (let ((fname (read-from-string name)))
-        (unless (string-prefix-p "%" name)
-          (export fname))
-        (eval `(defun
-                   ,fname ,(symbols-list (cdr args) method-p)
-                 ;; TODO: add declare type
-                 (cffi:foreign-funcall-pointer
-                  ,func-ptr
-                  nil
-                  ,@(append
-                     ;; cxx-ptr defined in defclass
-                     (when method-p '(:pointer obj))
-                     (parse-input-args (cdr args))
-                     (list (cffi-type (car args)))))))))))
+(defun format-includes (headers)
+  "Format a list of headers as C++ #include directives."
+  (with-output-to-string (stream)
+    (dolist (header headers)
+      (format stream (strcat "#include "
+                             (if (member (char header 0) '(#\< #\")) "~A" "~S")
+                             "~%")
+              header))))
 
-(defun compile-code (code)
-  "compile aync. code string with cxx compiler"
-  ;; compiler command
-  (let* ((cmd (strcat *cxx-compiler-executable-path*
-                      " "
-                      *cxx-compiler-internal-flags*
-                      " "
-                      *cxx-compiler-flags*
-                      " "
-                      ;;*cxx-compiler-output-path*
-                      ;;" "
-                      *cxx-compiler-working-directory* (symbol-name +cxx-compiler-lib-name+) ".cpp -o "
-                      *cxx-compiler-working-directory* (symbol-name +cxx-compiler-lib-name+) ".so "
-                      *cxx-compiler-link-libs*)))
+;;; ============================================================================
+;;; Compilation
+;;; ============================================================================
 
-    ;; create cxx file and insert code into it
-    (with-open-file (cxx-source-code-file (strcat *cxx-compiler-working-directory*
-                                                  (symbol-name +cxx-compiler-lib-name+)
-                                                  ".cpp")
-                                          :direction :output    ;; Write to disk
-                                          :if-exists :supersede ;; Overwrite the file
-                                          :if-does-not-exist :create)
-      (write-string code cxx-source-code-file))
-    ;; compile cxx file
-    (print cmd)
-    (multiple-value-bind (out errs code)
-        (uiop:run-program cmd :output :string
-                              :error-output :string
-                              :ignore-error-status t)
-      (format t "~A~%~A" out errs)
-      (when (/= code 0)
-        (error 'cxx-compile-error :message errs))
-      (= code 0))))
+(defun compile-and-load-code (code)
+  "Compile C++ source CODE string to a shared library.
+Returns T on success, signals CXX-COMPILE-ERROR on failure."
 
-(defun copy-and-load-new-library ()
-  "if compilation suceceded copy plugin.so to plugin_x.so
-           ,where x = 0,1,...
-     then load the library"
-  (let* ((n_str (write-to-string
-                 (1- (setf *cxx-compiler-packages-number*
-                           (1+ *cxx-compiler-packages-number*)))))
-         (source (strcat *cxx-compiler-working-directory*
-                         (symbol-name +cxx-compiler-lib-name+)
-                         ".so"))
-         (destination (strcat *cxx-compiler-working-directory*
-                              (symbol-name +cxx-compiler-lib-name+)
-                              "_" n_str ".so")))
-    (uiop:copy-file source destination)
-    (push
-     (cffi:load-foreign-library destination)
-     *cxx-compiler-packages*)))
+  (with-temporary-file (:stream source-stream
+                        :prefix "cl-cxx-jit"
+                        :pathname source-path
+                        :type "cpp"
+                        :direction :output)
+    (write-string code source-stream)
+    (finish-output source-stream)
+    (with-temporary-file (:prefix "cl-cxx-jit"
+                          :type "so"
+                          :pathname output-path)
+      (let ((cmd (format nil "~A ~A ~A ~A -o ~A ~A"
+                         *cxx-compiler-executable-path*
+                         *cxx-compiler-internal-flags*
+                         *cxx-compiler-flags*
+                         source-path
+                         output-path
+                         *cxx-compiler-link-libs*)))
+        (multiple-value-bind (stdout stderr code)
+            (uiop:run-program cmd :output :string
+                                  :error-output :string
+                                  :ignore-error-status t)
+          (declare (ignore stdout))
+          (if (/= code 0)
+              (error 'cxx-compile-error :message stderr)
+              (cffi:load-foreign-library output-path))
+          t)))))
 
-(defun from (header-names import &rest body)
-  "import cxx functions/methods from the header"
-  (declare (ignore import))
-  ;; 1. create code-block
-  (let* ((header (with-output-to-string (stream)
-                   (dolist (header-name header-names)
-                     (format stream "#include ~A~%"
-                             (if (member (char header-name 0) '(#\< #\"))
-                                 header-name
-                                 (strcat "\"" header-name "\""))))))
+;;; ============================================================================
+;;; High-Level API
+;;; ============================================================================
+
+(defun %from (includes imports)
+  "Internal: Compile and import C++ functions.
+INCLUDES is a list of header files.
+IMPORTS is a list of (C++-EXPR . LISP-NAME) pairs or raw C++ code strings."
+  (let* ((header-code (format-includes includes))
          (pack-name (symbol-name (gensym "RegisterPackage")))
-         (import-str (with-output-to-string (stream)
-                       (dolist (f body)
-                         (write-string (if (consp f)
-                                           (format nil "~%IMPORT(~A);" (car f))
-                                           f)
-                                       stream))))
-         (cxx-code (strcat header (uiop:read-file-string +cxx-compiler-wrap-cxx-path+)))
-         (cxx-code (string-replace-first cxx-code "$" pack-name))
-         (cxx-code (string-replace-first cxx-code "// BlaBlaBla;" import-str)))
+         (import-code (with-output-to-string (stream)
+                        (dolist (item imports)
+                          (if (consp item)
+                              (format stream "~%IMPORT(~A, ~A);"
+                                      (cdr item) (car item))
+                              (format stream "~A~%" item)))))
+         (wrap-code (uiop:read-file-string +cxx-compiler-wrap-cxx-path+))
+         (cxx-code (string-replace-first
+                    (string-replace-first wrap-code "$" pack-name)
+                    "// BlaBlaBla;" import-code)))
+    (compile-and-load-code (strcat header-code cxx-code))
+    ;; Register functions
+    (let ((*cxx--fun-names* (mappend (lambda (item)
+                                       (when (consp item)
+                                         (list (cdr item))))
+                                     imports)))
+      (eval `(cffi:foreign-funcall ,pack-name
+                                   :pointer (cffi:callback lisp-error)
+                                   :pointer (cffi:callback reg-data))))))
 
-    ;; 2. compile code
-    (when (compile-code cxx-code)
-      ;; 3. call c function to register package
-      (copy-and-load-new-library)
-      (let ((*cxx--fun-names* (mapcan (lambda (elem)
-                                        (when (consp elem) (list (cdr elem))))
-                                      body)))
-        (eval `(cffi:foreign-funcall ,pack-name :pointer (cffi:callback lisp-error)
-                                                :pointer (cffi:callback reg-data)))))))
+(defmacro with-cxx (includes &body body)
+  "Import C++ functions into Lisp.
+
+Syntax:
+  (with-cxx (\"<header1>\" \"<header2>\" ...)
+    (defcxxfun lisp-name \"cpp-expression\" )
+    ...
+    (cxx-raw \"raw C++ code\"))"
+  (with-gensyms (includes-var imports-var)
+    `(let ((,includes-var (list ,@includes))
+           (,imports-var '()))
+       (macrolet
+           ((defcxxfun (lisp-name cpp-expr)
+              `(push (cons ,cpp-expr (quote ,lisp-name)) ,',imports-var)))
+         (flet ((cxx-raw (raw-code)
+                  (push raw-code ,imports-var))
+                (cxx-include (include)
+                  (push include ,imports-var)))
+           ,@body))
+       (%from ,includes-var (nreverse ,imports-var)))))
+
+(defun delete-cxx-object (ptr &optional string-p)
+  "Delete a C++ object allocated by the C++ side.
+If STRING-P is non-nil, treat PTR as a char* allocated by new[].
+Otherwise, treat it as a std::any* containing a C++ object."
+  (cffi:foreign-funcall "ClCxxDeleteObject"
+                        :pointer ptr
+                        :bool string-p
+                        :bool))
+
+(defmacro with-cxx-string ((var cxx-string-ptr) &body body)
+  "Execute BODY with VAR bound to a C++ string, then free it."
+  `(let ((,var ,cxx-string-ptr))
+     (unwind-protect (progn ,@body)
+       (when ,var (delete-cxx-object ,var t)))))
