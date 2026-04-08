@@ -241,13 +241,9 @@ IMPORTS is a list of (C++-EXPR . LISP-NAME) pairs or raw C++ code strings."
                     "// BlaBlaBla;" import-code)))
     (compile-and-load-code (strcat header-code cxx-code))
     ;; Register functions
-    (let ((*cxx--fun-names* (mappend (lambda (item)
-                                       (when (consp item)
-                                         (list (cdr item))))
-                                     imports)))
-      (eval `(cffi:foreign-funcall ,pack-name
-                                   :pointer (cffi:callback lisp-error)
-                                   :pointer (cffi:callback reg-data))))))
+    (eval `(cffi:foreign-funcall ,pack-name
+                                 :pointer (cffi:callback lisp-error)
+                                 :pointer (cffi:callback reg-data)))))
 
 (defmacro with-cxx (includes &body body)
   "Import C++ functions into Lisp.
