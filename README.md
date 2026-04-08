@@ -76,7 +76,7 @@ Delete a C++ object allocated on the C++ side.
 
 ### Conditions
 
-- `cxx-error`: Base condition for all CXX-JIT errors
+- `cxx-error`: Base condition for all CXXynergy errors
 - `cxx-compile-error`: Signaled when C++ compilation fails
 - `cxx-runtime-error`: Signaled when C++ code throws an exception
 
