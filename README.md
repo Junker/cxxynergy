@@ -184,3 +184,7 @@ Then:
 - [ ] Add non-polling `from`
 - [ ] Benchmark
 - [ ] Better class interface
+
+## Warning
+
+This software is in active development. The APIs may change.
