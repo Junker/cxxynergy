@@ -1,11 +1,6 @@
-#|
-  This file is a part of cl-cxx-jit project.
-  Copyright (c) 2021 Islam Omar (io1131@fayoum.edu.eg)
-|#
-
 (defsystem :cxxynergy
   :version "1.0"
-  :author "Islam Omar"
+  :author "Islam Omar, Dmitrii Kosenkov"
   :license "MIT"
   :depends-on (:cffi :uiop :trivial-garbage :alexandria)
   :components ((:file "package")
