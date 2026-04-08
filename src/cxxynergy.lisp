@@ -22,9 +22,6 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
 (defparameter *cxx-compiler-link-libs* "-lm"
   "Linker flags for external libraries (added after -o output).")
 
-(defparameter *cxx-auto-export* t
-  "When non-nil, automatically export defined function symbols.")
-
 ;;; ============================================================================
 ;;; Type Mapping
 ;;; ============================================================================
@@ -138,9 +135,7 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
               (mapcan #'list
                       (mapcar #'cffi-type param-types)
                       (if method-p (cdr arg-syms) arg-syms))
-              (list (cffi-type return-type))))))
-      (when *cxx-auto-export*
-        (export name (symbol-package name))))))
+              (list (cffi-type return-type)))))))))
 
 ;;; ============================================================================
 ;;; Utilities
