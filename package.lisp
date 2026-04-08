@@ -1,10 +1,13 @@
 (defpackage :cxxynergy
   (:use #:cl
         #:cffi
-        #:uiop
         #:trivial-garbage
         #:alexandria)
   ;; Configuration
+  (:import-from #:uiop
+                #:strcat
+                #:last-char
+                #:with-temporary-file)
   (:export #:*cxx-compiler-executable-path*
            #:*cxx-compiler-flags*
            #:+cxx-compiler-lib-name+
