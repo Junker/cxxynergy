@@ -236,8 +236,8 @@ IMPORTS is a list of (C++-EXPR . LISP-NAME) pairs or raw C++ code strings."
                               (format stream "~A~%" item)))))
          (wrap-code (uiop:read-file-string +cxx-compiler-wrap-cxx-path+))
          (cxx-code (string-replace-first
-                    (string-replace-first wrap-code "$" pack-name)
-                    "// BlaBlaBla;" import-code)))
+                    (string-replace-first wrap-code "$registerPackage" pack-name)
+                    "// CXXYNERGY-PLACEHOLDER;" import-code)))
     (compile-and-load-code (strcat header-code cxx-code))
     ;; Register functions
     (eval `(cffi:foreign-funcall ,pack-name

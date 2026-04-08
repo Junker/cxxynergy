@@ -441,15 +441,15 @@ CL_CXX_EXPORT_API bool ClCxxDeleteObject(void *ptr, bool is_char) {
   return false;
 }
 
-CL_CXX_EXPORT_API bool $(void (*error_handler)(const char *),
-                         void (*reg_data_callback)(void *)) {
+CL_CXX_EXPORT_API bool $registerPackage(void (*error_handler)(const char *),
+                                        void (*reg_data_callback)(void *)) {
   static MetaData md;
   std::vector<std::string> v;
   std::vector<const char *> c_v;
   cl_cxx::Registry::get_registry()->error_handler = error_handler;
   cl_cxx::Registry::get_registry()->reg_data_callback = reg_data_callback;
   try {
-    // BlaBlaBla;
+    // CXXYNERGY-PLACEHOLDER;
     return true;
   } catch (const std::runtime_error &err) {
     cl_cxx::LispError(const_cast<char *>(err.what()));
