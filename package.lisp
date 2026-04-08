@@ -22,7 +22,10 @@
            #:cxx-runtime-error
            #:cxx-error-message)
   ;; Core API
-  (:export #:with-cxx)
+  (:export #:with-cxx
+           #:defcxxfun
+           #:cxx-raw
+           #:cxx-include)
   ;; Memory management
   (:export #:delete-cxx-object
            #:with-cxx-string))

@@ -13,7 +13,7 @@
                 :components ((:file "cxxynergy"))))
   :description "Common Lisp Cxx Interoperation"
   :long-description
-  #.(uiop:read-file-string (merge-pathnames #p"README.org"
+  #.(uiop:read-file-string (merge-pathnames #p"README.md"
                                             (or *load-pathname*
                                                 *compile-file-pathname*))
                            :if-does-not-exist nil)

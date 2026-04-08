@@ -11,7 +11,7 @@
   "Compiler flags passed to the C++ compiler.")
 
 (defconstant +cxx-compiler-wrap-cxx-path+
-  (uiop:merge-pathnames* "src/wrap-cxx.cpp" (asdf:system-source-directory :cxxynergy))
+  (asdf:system-relative-pathname :cxxynergy #P"src/wrap-cxx.cpp")
   "Path to the C++ wrapper code.")
 
 (defparameter *cxx-compiler-internal-flags*
@@ -213,11 +213,10 @@ Returns T on success, signals CXX-COMPILE-ERROR on failure."
             (uiop:run-program cmd :output :string
                                   :error-output :string
                                   :ignore-error-status t)
-          (declare (ignore stdout))
           (if (/= code 0)
               (error 'cxx-compile-error :message stderr)
               (cffi:load-foreign-library output-path))
-          t)))))
+          stdout)))))
 
 ;;; ============================================================================
 ;;; High-Level API
@@ -263,6 +262,7 @@ Syntax:
                   (push raw-code ,imports-var))
                 (cxx-include (include)
                   (push include ,imports-var)))
+           (declare (ignorable #'cxx-raw #'cxx-include))
            ,@body))
        (%from ,includes-var (nreverse ,imports-var)))))
 
