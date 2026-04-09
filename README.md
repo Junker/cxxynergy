@@ -2,10 +2,19 @@
 
 This library provides an interface to C++ from Common Lisp. It compiles C++ code, then loads it into Lisp. This project is a fork of [CL-CXX-JIT](https://github.com/Islam0mar/CL-CXX-JIT).
 
+## Installation
+
+This system can be installed from [UltraLisp](https://ultralisp.org/) like this:
+
+```common-lisp
+(ql-dist:install-dist "http://dist.ultralisp.org/"
+                      :prompt nil)
+(ql:quickload :cxxynergy)
+```
+
 ## Quick Start
 
-```lisp
-(ql:quickload :cxxynergy)
+```common-lisp
 (in-package :cxxynergy)
 
 ;; Simple function import
@@ -31,7 +40,7 @@ This library provides an interface to C++ from Common Lisp. It compiles C++ code
 Import C++ functions into Lisp.
 This is an atomic macro, meaning that all functions defined within it will be accessible after the macro is executed, not during its execution.
 
-```lisp
+```common-lisp
 (with-cxx (headers...)
   (cxx-include "additional-header")
   (cxx-raw "raw C++ code")
@@ -40,7 +49,7 @@ This is an atomic macro, meaning that all functions defined within it will be ac
 
 **Examples:**
 
-```lisp
+```common-lisp
 ;; Import multiple functions
 (with-cxx ("<cmath>")
   (defcxxfun sin-cpp "static_cast<double(*)(double)>(std::sin)")
@@ -59,7 +68,7 @@ This is an atomic macro, meaning that all functions defined within it will be ac
 
 Delete a C++ object allocated on the C++ side.
 
-```lisp
+```common-lisp
 (delete-cxx-object pointer &optional string-p)
 ```
 
@@ -86,7 +95,7 @@ Delete a C++ object allocated on the C++ side.
 
 ![SDL2 Example](sdl2.gif)
 
-```lisp
+```common-lisp
 (ql:quickload :cxxynergy)
 (in-package :cxxynergy)
 
@@ -121,7 +130,7 @@ Delete a C++ object allocated on the C++ side.
 
 ### Class Methods Example
 
-```lisp
+```common-lisp
 (with-cxx ()
   (cxx-raw "struct C { auto hi(){return \"Hello, World\\n\";} auto bye(){return \"Bye\";}; };")
   (defcxxfun hi "&C::hi")
@@ -135,7 +144,7 @@ Delete a C++ object allocated on the C++ side.
 
 ### Eigen Library Example
 
-```lisp
+```common-lisp
 (with-cxx ("<Eigen/Core>")
   (defcxxfun print-matrix
       "[](Eigen::CwiseNullaryOp<Eigen::internal::scalar_identity_op<double>,Eigen::Matrix<double, 3, 3>> x){ std::stringstream s; s << x; return s.str();}")
@@ -162,7 +171,7 @@ git clone https://github.com/Junker/cxxynergy.git
 
 Then:
 
-```lisp
+```common-lisp
 (ql:quickload :cxxynergy-test)
 ```
 
