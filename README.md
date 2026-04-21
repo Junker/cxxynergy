@@ -160,20 +160,6 @@ Delete a C++ object allocated on the C++ side.
 - Working C++17 compiler (g++ or clang++)
 - The compiler should support the flags specified in `*cxx-compiler-internal-flags*`
 
-## Installation
-
-Clone into `~/common-lisp/` or `~/quicklisp/local-projects/`:
-
-```bash
-cd ~/common-lisp
-git clone https://github.com/Junker/cxxynergy.git
-```
-
-Then:
-
-```common-lisp
-(ql:quickload :cxxynergy-test)
-```
 
 ## Supported Types
 
