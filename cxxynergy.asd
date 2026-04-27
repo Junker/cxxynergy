@@ -3,8 +3,7 @@
   :author "Islam Omar, Dmitrii Kosenkov"
   :license "MIT"
   :depends-on (:cffi :uiop :trivial-garbage :alexandria)
-  :components ((:file "package")
-               (:module "src"
+  :components ((:module "src"
                 :components ((:file "cxxynergy"))))
   :description "Common Lisp Cxx Interoperation"
   :long-description
