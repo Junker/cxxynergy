@@ -104,6 +104,8 @@ For clang++ use: -shared -fPIC -Wl,-undefined,error -Wl,-flat_namespace")
 ;;; Foreign Interface
 ;;; ============================================================================
 
+#+sbcl (declaim (sb-ext:muffle-conditions sb-ext:compiler-note))
+
 (cffi:defcallback lisp-error :void ((err :string))
   "Callback for handling C++ exceptions."
   (error 'cxx-runtime-error :message err))
