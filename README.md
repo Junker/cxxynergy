@@ -1,5 +1,9 @@
 # CXXynergy - Common Lisp C++ JIT for exposing C++ functions
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Common Lisp](https://img.shields.io/badge/Common%20Lisp-library-orange.svg)](https://common-lisp.net/)
+
+
 This library provides an interface to C++ from Common Lisp. It compiles C++ code, then loads it into Lisp. This project is a fork of [CL-CXX-JIT](https://github.com/Islam0mar/CL-CXX-JIT).
 
 ## Installation
